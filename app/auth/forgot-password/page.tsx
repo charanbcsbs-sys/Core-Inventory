@@ -41,32 +41,30 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),transparent_55%),radial-gradient(circle_at_bottom,_rgba(236,72,153,0.12),transparent_65%)] dark:bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),transparent_55%),radial-gradient(circle_at_bottom,_rgba(236,72,153,0.12),transparent_65%)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.3),transparent_60%)] dark:bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.05),transparent_60%)]"></div>
-
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-white text-black">
       <div className="relative z-10 w-full max-w-md px-4">
-        <div className="rounded-[28px] border border-sky-400/30 dark:border-white/10 bg-gradient-to-br from-sky-500/25 via-sky-500/10 to-sky-500/5 dark:from-white/5 dark:via-white/5 dark:to-white/5 backdrop-blur-md shadow-[0_30px_80px_rgba(2,132,199,0.35)] p-8">
+        <div className="rounded-[28px] border border-zinc-200 bg-white shadow-2xl p-8">
           <Link 
             href="/login" 
-            className="inline-flex items-center text-sm text-gray-500 hover:text-sky-600 transition-colors mb-6 group"
+            className="inline-flex items-center text-sm font-black uppercase tracking-tighter text-zinc-400 hover:text-black transition-colors mb-8 group font-montserrat"
           >
             <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
             Back to Login
           </Link>
 
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-sky-500/20 mb-4">
-              <Mail className="h-6 w-6 text-sky-600 dark:text-sky-400" />
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-none border-2 border-black bg-black text-white mb-6">
+              <Mail className="h-6 w-6" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Forgot Password?</h2>
-            <p className="text-gray-600 dark:text-white/70 mt-2">
+            <h2 className="text-3xl font-black text-black uppercase tracking-tighter font-montserrat">Forgot Password?</h2>
+            <p className="text-zinc-500 mt-2 font-medium">
               Enter your email and we'll send you a code to reset your password.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-white/80">
+              <label htmlFor="email" className="text-sm font-black uppercase tracking-tighter text-black font-montserrat">
                 Email Address
               </label>
               <Input
@@ -76,19 +74,19 @@ export default function ForgotPasswordPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full bg-white/10 dark:bg-white/5 border-sky-400/30 dark:border-white/20 text-gray-900 dark:text-white"
+                className="w-full h-12 border-2 border-zinc-100 focus:border-black transition-all rounded-none"
               />
             </div>
 
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg hover:shadow-xl transition-all"
+              className="w-full h-12 bg-black text-white hover:bg-zinc-800 transition-all font-black uppercase tracking-widest rounded-none shadow-none"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending Code...
+                  Sending...
                 </>
               ) : (
                 "Send Reset Code"

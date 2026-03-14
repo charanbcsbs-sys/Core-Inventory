@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, KeyRound, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import axios from "axios";
 
 export default function ResetPasswordPage() {
@@ -62,77 +62,75 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),transparent_55%),radial-gradient(circle_at_bottom,_rgba(236,72,153,0.12),transparent_65%)] dark:bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),transparent_55%),radial-gradient(circle_at_bottom,_rgba(236,72,153,0.12),transparent_65%)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.3),transparent_60%)] dark:bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.05),transparent_60%)]"></div>
-
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-white text-black">
       <div className="relative z-10 w-full max-w-md px-4">
-        <div className="rounded-[28px] border border-sky-400/30 dark:border-white/10 bg-gradient-to-br from-sky-500/25 via-sky-500/10 to-sky-500/5 dark:from-white/5 dark:via-white/5 dark:to-white/5 backdrop-blur-md shadow-[0_30px_80px_rgba(2,132,199,0.35)] p-8">
+        <div className="rounded-[28px] border border-zinc-200 bg-white shadow-2xl p-8">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/20 mb-4">
-              <ShieldCheck className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-none border-2 border-black bg-black text-white mb-6">
+              <ShieldCheck className="h-6 w-6" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Reset Password</h2>
-            <p className="text-gray-600 dark:text-white/70 mt-2">
+            <h2 className="text-3xl font-black text-black uppercase tracking-tighter font-montserrat">Reset Password</h2>
+            <p className="text-zinc-500 mt-2 font-medium">
               Enter the code sent to your email and choose a new password.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-white/80">Email</label>
+              <label className="text-sm font-black uppercase tracking-tighter text-black font-montserrat">Email</label>
               <Input
                 type="email"
                 value={email}
                 readOnly
-                className="w-full bg-gray-100/50 dark:bg-white/5 border-sky-400/10 dark:border-white/10 cursor-not-allowed"
+                className="w-full h-12 bg-zinc-50 border-2 border-zinc-100 cursor-not-allowed rounded-none"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-white/80">Verification Code</label>
+              <label className="text-sm font-black uppercase tracking-tighter text-black font-montserrat">Verification Code</label>
               <Input
                 placeholder="6-digit code"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 maxLength={6}
                 required
-                className="w-full text-center tracking-widest font-mono text-xl"
+                className="w-full h-12 text-center tracking-[0.5em] font-black text-2xl border-2 border-zinc-100 focus:border-black rounded-none"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-white/80">New Password</label>
+              <label className="text-sm font-black uppercase tracking-tighter text-black font-montserrat">New Password</label>
               <Input
                 type="password"
                 placeholder="••••••••"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
-                className="w-full"
+                className="w-full h-12 border-2 border-zinc-100 focus:border-black rounded-none"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-white/80">Confirm Password</label>
+              <label className="text-sm font-black uppercase tracking-tighter text-black font-montserrat">Confirm Password</label>
               <Input
                 type="password"
                 placeholder="••••••••"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="w-full"
+                className="w-full h-12 border-2 border-zinc-100 focus:border-black rounded-none"
               />
             </div>
 
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg mt-4"
+              className="w-full h-12 bg-black text-white hover:bg-zinc-800 transition-all font-black uppercase tracking-widest rounded-none shadow-none mt-6"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating Password...
+                  Updating...
                 </>
               ) : (
                 "Reset Password"

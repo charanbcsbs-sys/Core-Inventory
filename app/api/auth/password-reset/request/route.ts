@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MongoClient } from "mongodb";
+import { prisma } from "@/prisma/client";
 
 export async function POST(request: NextRequest) {
-  let mongoClient: MongoClient | null = null;
   try {
     const body = await request.json();
     const { email } = body;
@@ -10,9 +9,6 @@ export async function POST(request: NextRequest) {
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
-
-    // Lazy import to avoid module-level blocking
-    const { prisma } = await import("@/prisma/client");
 
     // Check if user exists
     const user = await prisma.user.findUnique({
@@ -30,39 +26,37 @@ export async function POST(request: NextRequest) {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Store OTP using native MongoDB driver to avoid Prisma's transaction
-    // requirement that needs a MongoDB replica set
-    mongoClient = new MongoClient(process.env.DATABASE_URL!, {
-      connectTimeoutMS: 5000,
-      serverSelectionTimeoutMS: 5000,
+    // Store OTP using Prisma
+    // We don't use a transaction here, so it works on standalone MongoDB
+    await prisma.passwordReset.create({
+      data: {
+        email,
+        otp,
+        expiresAt,
+      },
     });
-    await mongoClient.connect();
-    const db = mongoClient.db();
-    await db.collection("PasswordReset").insertOne({
-      email,
-      otp,
-      expiresAt,
-      createdAt: new Date(),
-    });
-    await mongoClient.close();
-    mongoClient = null;
 
-    // Send email via Brevo (lazy import)
+    // Send email via Brevo
     try {
       const { generatePasswordResetEmail } = await import("@/lib/email/templates");
       const { sendEmailViaBrevo } = await import("@/lib/email/brevo");
-      const emailContent = generatePasswordResetEmail(otp);
-      const result = await sendEmailViaBrevo({
-        to: { email: user.email, name: user.name },
-        subject: emailContent.subject,
-        htmlContent: emailContent.htmlContent,
-        textContent: emailContent.textContent,
-      });
-      if (!result.success) {
-        console.error("Failed to send OTP email:", result.error);
+      const { isBrevoConfigured } = await import("@/lib/email/brevo");
+
+      if (isBrevoConfigured()) {
+        const emailContent = generatePasswordResetEmail(otp);
+        const result = await sendEmailViaBrevo({
+          to: { email: user.email, name: user.name },
+          subject: emailContent.subject,
+          htmlContent: emailContent.htmlContent,
+          textContent: emailContent.textContent,
+        });
+        if (!result.success) {
+          console.error("Failed to send OTP email:", result.error);
+        }
+      } else {
+        console.warn("Brevo is not configured. OTP code (for testing):", otp);
       }
     } catch (emailErr) {
-      // Non-fatal: log but don't fail the request
       console.error("Email send error (non-fatal):", emailErr);
     }
 
@@ -75,9 +69,5 @@ export async function POST(request: NextRequest) {
       { error: "Internal server error" },
       { status: 500 }
     );
-  } finally {
-    if (mongoClient) {
-      try { await mongoClient.close(); } catch { /* ignore */ }
-    }
   }
 }

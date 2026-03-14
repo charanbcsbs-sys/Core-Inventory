@@ -423,6 +423,14 @@ export default function LoginPage() {
                     required
                     className="w-full bg-white/10 dark:bg-white/5 backdrop-blur-sm border border-sky-400/30 dark:border-white/20 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/40 focus-visible:border-sky-400 focus-visible:ring-sky-500/50 shadow-[0_10px_30px_rgba(2,132,199,0.15)]"
                   />
+                  <div className="flex justify-end mt-1">
+                    <Link
+                      href="/auth/forgot-password"
+                      className="text-xs font-medium text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 transition-colors"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
                 </div>
 
                 {/* Sign In Button — Loader2 inside button until homepage displays (no overlay) */}
