@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/prisma/client";
-import { generatePasswordResetEmail } from "@/lib/email/templates";
-import { sendEmailViaBrevo } from "@/lib/email/brevo";
-import { logger } from "@/lib/logger";
+import { MongoClient } from "mongodb";
 
 export async function POST(request: NextRequest) {
+  let mongoClient: MongoClient | null = null;
   try {
-    const { email } = await request.json();
+    const body = await request.json();
+    const { email } = body;
 
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
+
+    // Lazy import to avoid module-level blocking
+    const { prisma } = await import("@/prisma/client");
 
     // Check if user exists
     const user = await prisma.user.findUnique({
@@ -18,8 +20,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      logger.warn(`Password reset requested for non-existent email: ${email}`);
-      // Return success even if user not found for security reasons (avoid enum)
+      // Return success even if user not found - security: avoid email enumeration
       return NextResponse.json({
         message: "If an account exists, a reset code has been sent.",
       });
@@ -29,40 +30,54 @@ export async function POST(request: NextRequest) {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Store OTP in DB
-    await prisma.passwordReset.create({
-      data: {
-        email,
-        otp,
-        expiresAt,
-      },
+    // Store OTP using native MongoDB driver to avoid Prisma's transaction
+    // requirement that needs a MongoDB replica set
+    mongoClient = new MongoClient(process.env.DATABASE_URL!, {
+      connectTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 5000,
     });
-
-    // Send email
-    const emailContent = generatePasswordResetEmail(otp);
-    const result = await sendEmailViaBrevo({
-      to: { email: user.email, name: user.name },
-      subject: emailContent.subject,
-      htmlContent: emailContent.htmlContent,
-      textContent: emailContent.textContent,
+    await mongoClient.connect();
+    const db = mongoClient.db();
+    await db.collection("PasswordReset").insertOne({
+      email,
+      otp,
+      expiresAt,
+      createdAt: new Date(),
     });
+    await mongoClient.close();
+    mongoClient = null;
 
-    if (!result.success) {
-      logger.error(`Failed to send password reset email to ${email}: ${result.error}`);
-      // Special internal error for debugging
-      console.error("EMAIL_SEND_FAILED:", result.error);
-    } else {
-      logger.info(`Password reset OTP sent successfully to: ${email}`);
+    // Send email via Brevo (lazy import)
+    try {
+      const { generatePasswordResetEmail } = await import("@/lib/email/templates");
+      const { sendEmailViaBrevo } = await import("@/lib/email/brevo");
+      const emailContent = generatePasswordResetEmail(otp);
+      const result = await sendEmailViaBrevo({
+        to: { email: user.email, name: user.name },
+        subject: emailContent.subject,
+        htmlContent: emailContent.htmlContent,
+        textContent: emailContent.textContent,
+      });
+      if (!result.success) {
+        console.error("Failed to send OTP email:", result.error);
+      }
+    } catch (emailErr) {
+      // Non-fatal: log but don't fail the request
+      console.error("Email send error (non-fatal):", emailErr);
     }
 
     return NextResponse.json({
       message: "If an account exists, a reset code has been sent.",
     });
   } catch (error) {
-    logger.error("Error in password reset request:", error);
+    console.error("Password reset request error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     );
+  } finally {
+    if (mongoClient) {
+      try { await mongoClient.close(); } catch { /* ignore */ }
+    }
   }
 }
