@@ -367,3 +367,68 @@ This is an automated email from Stock Inventory Management. Please do not reply 
     textContent,
   };
 }
+
+/**
+ * Generate password reset email with OTP code
+ *
+ * @param otp - 6-digit OTP code
+ * @returns EmailContent - Email content with HTML and text versions
+ */
+export function generatePasswordResetEmail(otp: string): EmailContent {
+  const subject = "Reset Your Password - Stock Inventory Management";
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Reset Your Password</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #ffffff;">
+      <tr>
+        <td align="center" style="padding: 40px 20px;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px;">
+            <tr>
+              <td style="padding: 40px;">
+                <h1 style="color: #000000; margin: 0 0 20px 0; font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.05em;">Reset Your Password</h1>
+                
+                <p style="font-size: 16px; line-height: 1.5; color: #4b5563; margin: 0 0 30px 0;">We received a request to reset your password. Use the following verification code to complete the process:</p>
+                
+                <div style="background-color: #f9fafb; border-radius: 8px; padding: 24px; text-align: center; margin: 0 0 30px 0;">
+                  <span style="font-family: inherit; font-size: 36px; font-weight: 900; letter-spacing: 0.5em; color: #000000;">${otp}</span>
+                </div>
+                
+                <p style="font-size: 14px; line-height: 1.5; color: #6b7280; margin: 0 0 20px 0;">This code will expire in 10 minutes. If you did not request a password reset, please ignore this email.</p>
+                
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+                
+                <p style="font-size: 12px; color: #9ca3af; margin: 0;">Stock Inventory Management System • Admin Dashboard</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+  `.trim();
+
+  const textContent = `
+Reset Your Password
+
+We received a request to reset your password. Use the following verification code to complete the process:
+
+VERIFICATION CODE: ${otp}
+
+This code will expire in 10 minutes. If you did not request a password reset, please ignore this email.
+
+Stock Inventory Management System
+  `.trim();
+
+  return {
+    subject,
+    htmlContent,
+    textContent,
+  };
+}
