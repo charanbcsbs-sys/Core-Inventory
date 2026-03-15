@@ -8,7 +8,7 @@ import { generateToken } from "@/utils/auth";
 import {
   getGoogleClientId,
   getGoogleClientSecret,
-  isGoogleOAuthConfigured,
+  isGoogleOAuthFullyConfigured,
 } from "@/lib/auth/oauth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/prisma/client";
@@ -21,9 +21,9 @@ import bcrypt from "bcryptjs";
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!isGoogleOAuthConfigured()) {
+    if (!isGoogleOAuthFullyConfigured()) {
       return NextResponse.redirect(
-        new URL("/login?error=oauth_not_configured", request.url)
+        new URL("/login?error=oauth_secret_missing", request.url)
       );
     }
 

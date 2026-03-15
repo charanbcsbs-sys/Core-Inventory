@@ -14,8 +14,19 @@ import { logger } from "@/lib/logger";
 export function isGoogleOAuthConfigured(): boolean {
   return !!(
     process.env.GOOGLE_CLIENT_ID &&
-    process.env.GOOGLE_CLIENT_SECRET &&
     process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  );
+}
+
+/**
+ * Check if Google OAuth is fully configured (required for callback)
+ * 
+ * @returns boolean - True if Google OAuth secret is also configured
+ */
+export function isGoogleOAuthFullyConfigured(): boolean {
+  return !!(
+    isGoogleOAuthConfigured() &&
+    process.env.GOOGLE_CLIENT_SECRET
   );
 }
 

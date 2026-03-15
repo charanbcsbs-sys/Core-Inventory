@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -14,13 +14,8 @@ import {
 } from "@/components/ui/select";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import Image from "next/image";
-import { Shield, Loader2, Store, ShoppingBag, Users } from "lucide-react";
+import { Shield, Loader2, Zap, BarChart3, Users } from "lucide-react";
 
-/**
- * Test account credentials for quick login (demo / production).
- * Main account: test@admin.com (full privileges). Run scripts/update-demo-user.ts --to admin once to migrate existing test@user.com to test@admin.com. Client/supplier for later.
- */
 const testAccounts = {
   "guest-user": {
     email: "admin@test.com",
@@ -28,7 +23,7 @@ const testAccounts = {
   },
   "guest-supplier": {
     email: "supplier@tech.com",
-    password: "password123", /* Needs to match backend script if we update that, but admin is most important */
+    password: "password123",
   },
   "guest-client": {
     email: "test@client.com",
@@ -36,28 +31,18 @@ const testAccounts = {
   },
 };
 
-/**
- * Login page client component (uses useSearchParams for OAuth/redirect).
- */
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isNavigatingToHome, setIsNavigatingToHome] = useState(false);
-  const [selectMounted, setSelectMounted] = useState(false);
   const { login, isLoggedIn, user } = useAuth();
-
-  // useLayoutEffect runs before paint so the Select appears on first paint (no flash)
-  useLayoutEffect(() => {
-    setSelectMounted(true);
-  }, []);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const navigatingFromSubmitRef = useRef(false);
 
-  // Redirect if already logged in (e.g. landed on /login with cookie).
   useEffect(() => {
     if (isLoggedIn && !navigatingFromSubmitRef.current) {
       const dest =
@@ -78,12 +63,13 @@ export default function LoginPage() {
 
       switch (error) {
         case "oauth_not_configured":
-          errorMessage =
-            "Google OAuth is not configured. Please contact support.";
+          errorMessage = "Google OAuth is not configured. Please contact support.";
+          break;
+        case "oauth_secret_missing":
+          errorMessage = "Google Client Secret is missing in server configuration. Please check .env file.";
           break;
         case "oauth_failed":
-          errorMessage =
-            "Google sign-in was cancelled or failed. Please try again.";
+          errorMessage = "Google sign-in was cancelled or failed. Please try again.";
           break;
         case "invalid_state":
           errorMessage = "Invalid OAuth state. Please try again.";
@@ -95,16 +81,10 @@ export default function LoginPage() {
           errorMessage = "Failed to exchange OAuth token. Please try again.";
           break;
         case "fetch_user_failed":
-          errorMessage =
-            "Failed to fetch user information from Google. Please try again.";
+          errorMessage = "Failed to fetch user information from Google. Please try again.";
           break;
         case "no_email":
           errorMessage = "Google account email is required. Please try again.";
-          break;
-        case "oauth_processing_failed":
-        case "oauth_error":
-          errorMessage =
-            "An error occurred during OAuth processing. Please try again.";
           break;
         default:
           errorMessage = `OAuth error: ${error}. Please try again.`;
@@ -121,10 +101,6 @@ export default function LoginPage() {
     }
   }, [searchParams, router, toast]);
 
-  /**
-   * Handle test account selection from dropdown
-   * Auto-fills email and password fields
-   */
   const handleRoleSelect = (value: string) => {
     if (value === "clear") {
       setSelectedRole("");
@@ -140,20 +116,10 @@ export default function LoginPage() {
     }
   };
 
-  /**
-   * Handle Google OAuth sign-in
-   * Redirects to Google OAuth flow
-   */
   const handleGoogleSignIn = async () => {
     try {
-      // Get callback URL from search params or use default
       const redirectUrl = searchParams.get("redirect") || "/";
-
-      // Redirect to OAuth route with callback parameter
-      const oauthUrl = `/api/auth/oauth/google?callback=${encodeURIComponent(
-        redirectUrl,
-      )}`;
-
+      const oauthUrl = `/api/auth/oauth/google?callback=${encodeURIComponent(redirectUrl)}`;
       window.location.href = oauthUrl;
     } catch (error) {
       console.error("Error initiating Google OAuth:", error);
@@ -165,16 +131,12 @@ export default function LoginPage() {
     }
   };
 
-  /**
-   * Handle form submission for email/password login
-   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
       const userData = await login(email, password);
-
       const userName = userData.name || userData.email.split("@")[0] || "User";
 
       navigatingFromSubmitRef.current = true;
@@ -182,16 +144,9 @@ export default function LoginPage() {
 
       toast({
         title: `Welcome back, ${userName}! 👋`,
-        description: "You have successfully logged in. Enjoy your stay!",
+        description: "Authentication successful. Accessing your dashboard...",
       });
 
-      setEmail("");
-      setPassword("");
-      setSelectedRole("");
-
-      // Full-page navigation to the correct dashboard for the user's role.
-      // window.location.href bypasses the Next.js RSC cache which can contain
-      // stale 307 redirects from before login, causing infinite redirect loops.
       const dest =
         userData.role === "client"
           ? "/client"
@@ -199,316 +154,169 @@ export default function LoginPage() {
             ? "/supplier"
             : "/";
       window.location.href = dest;
-    } catch (error: unknown) {
-      const axiosErr = error as {
-        response?: { data?: { error?: string }; status?: number };
-      };
-      const serverMessage = axiosErr?.response?.data?.error;
+    } catch (error: any) {
+      const serverMessage = error.response?.data?.error;
       toast({
         title: "Login Failed",
-        description:
-          serverMessage || "Invalid email or password. Please try again.",
+        description: serverMessage || "Invalid credentials. Please try again.",
         variant: "destructive",
       });
     } finally {
-      // Only clear loading when we're not redirecting (error path); on success button keeps Loader2 until unmount
       if (!navigatingFromSubmitRef.current) setIsLoading(false);
     }
   };
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-white text-black">
-      {/* Background overlay removed for clean light design */}
-      <div className="pointer-events-none absolute inset-0"></div>
-
       <div className="relative z-10 w-full">
         <div className="flex flex-col lg:flex-row min-h-screen">
-          {/* Left Side - SVG Background & Professional Advertising Cards */}
-          <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center p-8 lg:p-12">
-            <div className="absolute inset-0 opacity-25 dark:opacity-20">
-              <Image
-                src="/stock_inventory.svg"
-                alt="Stock Inventory Illustration"
-                fill
-                className="object-contain"
-                priority
-              />
-            </div>
-            <div className="relative z-10 max-w-2xl w-full space-y-6">
-              {/* Main Welcome Card - Demo guide */}
-              <div className="rounded-[28px] border border-zinc-200 bg-zinc-50 p-4 sm:p-8 shadow-sm">
-                <h1 className="text-xl lg:text-3xl font-black text-black mb-3 tracking-tighter text-center uppercase">
-                  Demo Accounts Guide
+          {/* Left Side - Brand & Features */}
+          <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center p-12 bg-zinc-50 border-r border-zinc-200">
+            <div className="relative z-10 max-w-lg w-full space-y-12">
+              <div className="space-y-4">
+                <h1 className="text-6xl font-black text-black uppercase tracking-tighter font-montserrat leading-[0.8] mb-6">
+                  Manage<br />
+                  <span className="text-zinc-300">Inventory</span><br />
+                  Like a Pro.
                 </h1>
-                <p className="text-md lg:text-lg text-gray-700 dark:text-white/80 font-medium leading-relaxed text-center">
-                  Use the dropdown on the right to sign in as Admin, Client, or
-                  Supplier. All demo accounts use password: password123.
+                <p className="text-xl text-zinc-500 font-medium max-w-md">
+                  The ultimate hub for warehouse logistics, supplier relations, and real-time stock tracking.
                 </p>
               </div>
 
-              {/* Demo role cards */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Admin */}
-                <div className="rounded-[20px] border border-sky-400/30 dark:border-white/10 bg-gradient-to-br from-sky-500/25 via-sky-500/10 to-sky-500/5 dark:from-white/5 dark:via-white/5 dark:to-white/5 backdrop-blur-sm shadow-[0_20px_60px_rgba(2,132,199,0.3)] dark:shadow-lg p-4 transition-all hover:shadow-[0_25px_70px_rgba(2,132,199,0.4)] hover:border-sky-300/50 dark:hover:border-sky-300/40">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="rounded-xl border border-sky-400/30 dark:border-sky-400/20 bg-sky-500/20 dark:bg-sky-500/10 backdrop-blur-sm p-2">
-                      <Shield className="h-5 w-5 text-sky-600 dark:text-sky-400" />
-                    </div>
-                    <h3 className="text-md font-semibold text-gray-900 dark:text-white">
-                      Admin
-                    </h3>
+              <div className="grid grid-cols-1 gap-8 pt-8">
+                <div className="flex items-start gap-4">
+                  <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-black text-white">
+                    <BarChart3 className="h-5 w-5" />
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-white/70 leading-relaxed">
-                    Full access: products, orders, invoices, warehouses, admin
-                    panel. New user registration creates an admin account.
-                  </p>
+                  <div>
+                    <h3 className="text-lg font-black uppercase tracking-tighter font-montserrat">Live Insights</h3>
+                    <p className="text-zinc-500 text-sm">Monitor turnover rates and stock levels with instant data.</p>
+                  </div>
                 </div>
 
-                {/* Client */}
-                <div className="rounded-[20px] border border-emerald-400/30 dark:border-white/10 bg-gradient-to-br from-emerald-500/25 via-emerald-500/10 to-emerald-500/5 dark:from-white/5 dark:via-white/5 dark:to-white/5 backdrop-blur-sm shadow-[0_20px_60px_rgba(16,185,129,0.3)] dark:shadow-lg p-4 transition-all hover:shadow-[0_25px_70px_rgba(16,185,129,0.4)] hover:border-emerald-300/50 dark:hover:border-emerald-300/40">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="rounded-xl border border-emerald-400/30 dark:border-emerald-400/20 bg-emerald-500/20 dark:bg-emerald-500/10 backdrop-blur-sm p-2">
-                      <ShoppingBag className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <h3 className="text-md font-semibold text-gray-900 dark:text-white">
-                      Client
-                    </h3>
+                <div className="flex items-start gap-4">
+                  <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-black text-white">
+                    <Users className="h-5 w-5" />
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-white/70 leading-relaxed">
-                    Client portal: catalog, your orders, invoices, place order,
-                    pay with Stripe. Role set via script for showcase only.
-                  </p>
-                </div>
-
-                {/* Supplier */}
-                <div className="rounded-[20px] border border-amber-400/30 dark:border-white/10 bg-gradient-to-br from-amber-500/30 via-amber-500/15 to-amber-500/5 dark:from-white/5 dark:via-white/5 dark:to-white/5 backdrop-blur-sm shadow-[0_20px_60px_rgba(245,158,11,0.25)] dark:shadow-lg p-4 transition-all hover:shadow-[0_25px_70px_rgba(245,158,11,0.35)] hover:border-amber-300/60 dark:hover:border-amber-300/40">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="rounded-xl border border-amber-400/30 dark:border-amber-400/20 bg-amber-500/20 dark:bg-amber-500/10 backdrop-blur-sm p-2">
-                      <Store className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <h3 className="text-md font-semibold text-gray-900 dark:text-white">
-                      Supplier
-                    </h3>
+                  <div>
+                    <h3 className="text-lg font-black uppercase tracking-tighter font-montserrat">Role Based</h3>
+                    <p className="text-zinc-500 text-sm">Dedicated portals for Admins, Suppliers, and Clients.</p>
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-white/70 leading-relaxed">
-                    Supplier portal: your products, orders, revenue, low stock.
-                    Role and supplier link set via script for showcase only.
-                  </p>
-                </div>
-
-                {/* New accounts & roles */}
-                <div className="rounded-[20px] border border-violet-400/30 dark:border-white/10 bg-gradient-to-br from-violet-500/25 via-violet-500/10 to-violet-500/5 dark:from-white/5 dark:via-white/5 dark:to-white/5 backdrop-blur-sm shadow-[0_20px_60px_rgba(139,92,246,0.35)] dark:shadow-lg p-4 transition-all hover:shadow-[0_25px_70px_rgba(139,92,246,0.45)] hover:border-violet-300/50 dark:hover:border-violet-300/40">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="rounded-xl border border-violet-400/30 dark:border-violet-400/20 bg-violet-500/20 dark:bg-violet-500/10 backdrop-blur-sm p-2">
-                      <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                    </div>
-                    <h3 className="text-md font-semibold text-gray-900 dark:text-white">
-                      Accounts & Roles
-                    </h3>
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-white/70 leading-relaxed">
-                    You cannot create client or supplier accounts at sign-up;
-                    those roles are applied in the DB via script for demo. As
-                    admin, use User Management to view or change user roles.
-                  </p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Right Side - Login Form */}
-          <div className="w-full lg:w-1/2 flex items-center justify-center p-0 sm:p-8 lg:p-12">
-            <div className="w-full max-w-md rounded-[28px] border border-zinc-200 bg-white shadow-xl p-4 sm:p-8 transition-all duration-300">
-              <div className="space-y-2 mb-6">
-                <h2 className="text-2xl sm:text-4xl font-black text-black text-center uppercase tracking-tighter">
-                  Welcome Back
-                </h2>
-                <p className="text-sm sm:text-base text-zinc-600 text-center font-medium">
-                  Sign in to your account to continue
-                </p>
+          <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12">
+            <div className="w-full max-w-md space-y-8">
+              <div className="space-y-2">
+                <h2 className="text-4xl font-black text-black uppercase tracking-tighter font-montserrat">Sign In</h2>
+                <p className="text-zinc-500 font-medium">Access your industrial stockly dashboard.</p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4 mb-6">
-                {/* Test Account Dropdown - client-only after layout effect to avoid Radix Select aria-controls hydration mismatch; placeholder matches trigger so no visual flash */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-white/80">
-                    Test Accounts To Login With
-                  </label>
-                  {!selectMounted ? (
-                    <div
-                      className="flex h-11 w-full items-center justify-between rounded-md border border-sky-400/30 dark:border-white/20 bg-white/10 dark:bg-white/5 px-3 py-2.5 text-sm text-gray-500 dark:text-white/40"
-                      aria-hidden
-                    >
-                      Select Role Based Test Account
-                    </div>
-                  ) : (
-                    <Select
-                      key={`select-${selectedRole || "empty"}`}
-                      value={selectedRole || undefined}
-                      onValueChange={handleRoleSelect}
-                    >
-                      <SelectTrigger className="w-full border-sky-400/30 dark:border-white/20 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/40 focus:border-sky-400 focus:ring-sky-500/50">
-                        <SelectValue placeholder="Select Role Based Test Account" />
-                      </SelectTrigger>
-                      <SelectContent
-                        className="border-sky-400/20 dark:border-white/10 bg-white/80 dark:bg-popover/50 backdrop-blur-sm z-[100]"
-                        position="popper"
-                        sideOffset={5}
-                        align="start"
-                      >
-                        <SelectItem
-                          value="guest-user"
-                          className="cursor-pointer text-gray-900 dark:text-white focus:bg-sky-100 dark:focus:bg-white/10 focus:text-gray-900 dark:focus:text-white"
-                        >
-                          Guest User / Admin (admin@test.com)
-                        </SelectItem>
-                        <SelectItem
-                          value="guest-supplier"
-                          className="cursor-pointer text-gray-900 dark:text-white focus:bg-sky-100 dark:focus:bg-white/10 focus:text-gray-900 dark:focus:text-white"
-                        >
-                          Supplier (test@supplier.com)
-                        </SelectItem>
-                        <SelectItem
-                          value="guest-client"
-                          className="cursor-pointer text-gray-900 dark:text-white focus:bg-sky-100 dark:focus:bg-white/10 focus:text-gray-900 dark:focus:text-white"
-                        >
-                          Client (test@client.com)
-                        </SelectItem>
-                        {selectedRole && (
-                          <SelectItem
-                            value="clear"
-                            className="cursor-pointer text-gray-500 dark:text-white/60 opacity-60 focus:bg-sky-100 dark:focus:bg-white/10 focus:text-gray-500 dark:focus:text-white/60"
-                          >
-                            Clear Selection
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
+              {/* Demo Selection */}
+              <div className="space-y-2 bg-zinc-50 border border-zinc-200 p-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 font-montserrat px-1">Quick Access (Demo)</label>
+                <Select onValueChange={handleRoleSelect} value={selectedRole}>
+                  <SelectTrigger className="w-full h-12 border-2 border-zinc-100 focus:ring-0 bg-white rounded-none font-black uppercase tracking-tighter font-montserrat">
+                    <SelectValue placeholder="CHOOSE A ROLE" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-none border-2 border-black">
+                    <SelectItem value="guest-user" className="font-bold uppercase tracking-tighter">Admin Account</SelectItem>
+                    <SelectItem value="guest-supplier" className="font-bold uppercase tracking-tighter">Supplier Account</SelectItem>
+                    <SelectItem value="guest-client" className="font-bold uppercase tracking-tighter">Client Account</SelectItem>
+                    <SelectItem value="clear" className="font-bold uppercase tracking-tighter text-red-500">Clear Fields</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                {/* Email Field */}
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <label
-                    htmlFor="email"
-                    className="text-sm font-medium text-gray-700 dark:text-white/80"
-                  >
-                    Email
-                  </label>
+                  <label className="text-sm font-black uppercase tracking-tighter text-black font-montserrat">Email</label>
                   <Input
-                    id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder="you@company.com"
                     required
-                    className="w-full bg-white/10 dark:bg-white/5 backdrop-blur-sm border border-sky-400/30 dark:border-white/20 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/40 focus-visible:border-sky-400 focus-visible:ring-sky-500/50 shadow-[0_10px_30px_rgba(2,132,199,0.15)]"
+                    className="w-full h-12 border-2 border-zinc-100 focus:border-black rounded-none"
                   />
                 </div>
 
-                {/* Password Field */}
                 <div className="space-y-2">
-                  <label
-                    htmlFor="password"
-                    className="text-sm font-medium text-gray-700 dark:text-white/80"
-                  >
-                    Password
-                  </label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    required
-                    className="w-full bg-white/10 dark:bg-white/5 backdrop-blur-sm border border-sky-400/30 dark:border-white/20 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/40 focus-visible:border-sky-400 focus-visible:ring-sky-500/50 shadow-[0_10px_30px_rgba(2,132,199,0.15)]"
-                  />
-                  <div className="flex justify-end mt-1">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-black uppercase tracking-tighter text-black font-montserrat">Password</label>
                     <Link
                       href="/auth/forgot-password"
-                      className="text-xs font-medium text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 transition-colors"
+                      className="text-[10px] font-black uppercase tracking-tighter text-zinc-400 hover:text-black transition-colors"
                     >
                       Forgot password?
                     </Link>
                   </div>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    className="w-full h-12 border-2 border-zinc-100 focus:border-black rounded-none"
+                  />
                 </div>
 
-                {/* Sign In Button — Loader2 inside button until homepage displays (no overlay) */}
                 <Button
                   type="submit"
-                  className="w-full h-12 rounded-xl bg-black text-white shadow-md transition duration-200 hover:bg-zinc-800 font-bold uppercase tracking-wide"
                   disabled={isLoading || isNavigatingToHome}
+                  className="w-full h-12 bg-black text-white hover:bg-zinc-800 transition-all font-black uppercase tracking-widest rounded-none shadow-none mt-4"
                 >
                   {isNavigatingToHome ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Loading Dashboard…
+                      Loading...
                     </>
                   ) : isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing In…
+                      Authenticating...
                     </>
-                  ) : (
-                    "Sign In"
-                  )}
+                  ) : "Enterprise Login"}
                 </Button>
               </form>
 
-              {/* Separator */}
-              <div className="relative mb-6">
+              <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-sky-400/20 dark:border-white/10" />
+                  <span className="w-full border-t-2 border-zinc-100" />
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-transparent px-2 text-gray-600 dark:text-white/60">
-                    Or continue with
-                  </span>
+                <div className="relative flex justify-center text-xs uppercase font-black font-montserrat tracking-widest bg-white px-4 text-zinc-300">
+                  Or use social login
                 </div>
               </div>
 
-              {/* Google OAuth Button */}
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleGoogleSignIn}
                 disabled={isLoading || isNavigatingToHome}
-                className="w-full border-sky-400/30 dark:border-white/20 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-gray-900 dark:text-white hover:bg-white/20 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white mb-6"
+                className="w-full h-12 border-2 border-zinc-100 hover:border-black hover:bg-transparent text-black transition-all rounded-none font-black uppercase tracking-tighter font-montserrat"
               >
-                <svg
-                  className="mr-2 h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    fill="#4285F4"
-                  />
-                  <path
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    fill="#34A853"
-                  />
-                  <path
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                    fill="#FBBC05"
-                  />
-                  <path
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                    fill="#EA4335"
-                  />
+                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                 </svg>
                 Continue with Google
               </Button>
 
-              {/* Register Link */}
               <div className="text-center text-sm">
-                <p className="text-gray-600 dark:text-white/70">
-                  Don&apos;t have an account?{" "}
+                <p className="text-zinc-500 font-medium">
+                  New to Stockly?{" "}
                   <Link
                     href="/register"
-                    className="text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 transition-colors font-medium"
+                    className="text-black hover:underline font-black uppercase tracking-tighter font-montserrat"
                   >
-                    Sign up
+                    Create Account
                   </Link>
                 </p>
               </div>

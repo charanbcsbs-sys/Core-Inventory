@@ -20,11 +20,15 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      await axios.post("/api/auth/password-reset/request", { email });
+      const response = await axios.post("/api/auth/password-reset/request", { email });
+      
+      const devOtp = response.data._dev_otp;
       
       toast({
-        title: "Code Sent! 📧",
-        description: "If an account exists, you will receive a verification code shortly.",
+        title: devOtp ? `[DEV] Code: ${devOtp} 🔑` : "Code Sent! 📧",
+        description: devOtp 
+          ? "DEVELOPMENT MODE: Your verification code is shown above."
+          : "If an account exists, you will receive a verification code shortly.",
       });
       
       // Pass email to reset page to pre-fill
